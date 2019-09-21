@@ -11,14 +11,14 @@ setmetatable(Blob, {
   end,
 })
 
-function Blob:_init(world, x,y,size)
+function Blob:_init(world, x, y, size, color)
   Creature:_init(self, world, x, y)
   self.size = size or 7
   self.splitsize = 10
   self.sense = 20
   self.speed = 5
   self.world = world
-  self.color = {x / 100, y / 100, math.random(), 0.8}
+  self.color = color or {x / 100, y / 100, 0.5 + math.random() / 2, 0.9}
   
   self.body = love.physics.newBody(world.box2d_world, x, y, "dynamic" )
   self.body:setFixedRotation(true)
@@ -53,7 +53,7 @@ function Blob:process(dt, objects)
   local closestFood, closestDist, dx, dy = self:_findClosestFood(objects)
   
   if closestDist then
-    if closestDist < math.pow(self.size - 1,0.5) then
+    if closestDist < math.pow(self.size,0.5) then
       output.eat = true
     else
       output.dx = dx
@@ -63,7 +63,9 @@ function Blob:process(dt, objects)
     -- do nothing, no food in sight
   end
   
-  -- TODO: handle reproduction
+  if self.size > 12 then
+    output.reproduce = true
+  end
   
   return output
 end
