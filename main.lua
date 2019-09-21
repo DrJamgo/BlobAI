@@ -4,6 +4,7 @@ package.path = package.path .. ";" .. [[torch/pkg/?/init.lua]] .. ";" .. [[torch
 package.cpath = package.cpath .. ";" .. [[torch/install/lib/lua/5.1/?.so]]
 
 require "blob"
+require "player"
 require "stats"
 
 require "nn"
@@ -87,6 +88,9 @@ function love.load()
   for i=1,10 do
     world.blobs[i] = Blob(world, love.math.random() * world.sizex, love.math.random() * world.sizey)
   end
+  
+  world.player = Player(world, 0.5 * world.sizex, 0. * world.sizey, nil, {1,1,1,1})
+  table.insert(world.blobs, world.player)
   
   love.window.setMode( 800, 800)
 

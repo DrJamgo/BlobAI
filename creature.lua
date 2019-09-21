@@ -49,7 +49,7 @@ function Creature:_eat(objects, dt)
     dx = food.x - self.body:getX()
     dy = food.y - self.body:getY()
     local dist = math.sqrt(dx * dx + dy * dy)
-    if dist <= math.pow(self.size + 2,0.5) then
+    if food.food > 0 and dist <= math.pow(self.size + 2,0.5) then
       local eat_rate = 0.3 * self.size
       local eat = math.min(food.food, eat_rate * dt)
       self.size = self.size + eat
@@ -61,7 +61,7 @@ end
 
 function Creature:_reproduce()
   self.size = self.size / 2
-  new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
+  local new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
   self.world.blobs[#self.world.blobs+1] = new_blob
 end
 

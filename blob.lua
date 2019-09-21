@@ -2,14 +2,15 @@ require "creature"
 
 Blob = {}
 Blob.__index =
-setmetatable(Blob, {
-  __index = Creature,
-  __call = function (cls, ...)
-    local self = setmetatable({}, cls)
-    self:_init(...)
-    return self
-  end,
-})
+  setmetatable(Blob, {
+    __index = Creature,
+    __call = function (cls, ...)
+      local self = setmetatable({}, cls)
+      self:_init(...)
+      return self
+    end,
+  }
+)
 
 function Blob:_init(world, x, y, size, color)
   Creature:_init(self, world, x, y)
