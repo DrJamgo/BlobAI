@@ -19,7 +19,7 @@ function Blob:_init(world, x, y, size, color)
   self.sense = 20
   self.speed = 5
   self.world = world
-  self.color = color or {x / 100, y / 100, 0.5 + math.random() / 2, 0.9}
+  self.color = color or {x / 100, y / 100, 0.5 + math.random() / 2, 0.7}
   
   self.body = love.physics.newBody(world.box2d_world, x, y, "dynamic" )
   self.body:setFixedRotation(true)

@@ -89,7 +89,7 @@ function love.load()
     world.blobs[i] = Blob(world, love.math.random() * world.sizex, love.math.random() * world.sizey)
   end
   
-  world.player = Player(world, 0.5 * world.sizex, 0. * world.sizey, nil, {1,1,1,1})
+  world.player = Player(world, 0.5 * world.sizex, 0. * world.sizey, nil, {1,1,1,0.7})
   table.insert(world.blobs, world.player)
   
   love.window.setMode( 800, 800)
@@ -122,6 +122,8 @@ function love.update(dt)
         food=FOODSIZE
       }
     end
+    
+    
     end_time = love.timer.getTime()
 
     stats.elapsed_time = end_time - start_time
@@ -147,10 +149,15 @@ end
 function love.draw()
   
   sx = (love.graphics.getWidth()) / (world.sizex + 20)
-  transform = love.math.newTransform( 10 * sx, 10 * sx, 0, sx, sx)
+  --transform = love.math.newTransform( 10 * sx, 10 * sx, 0, sx, sx)
+  
+  local s = world.player.sense
+  transform = love.math.newTransform(world.player.sense * s,world.player.sense * s, 0, s, s, world.player.body:getX(), world.player.body:getY())
+  
   love.graphics.replaceTransform( transform )
   
   love.graphics.setColor(0,1,0, 0.2)
+  love.graphics.rectangle("line",0,0,world.sizex,world.sizey)
   for k,food in pairs(world.food) do
     love.graphics.circle("fill", food.x, food.y, math.pow(food.food, 0.5))
   end
@@ -161,7 +168,7 @@ function love.draw()
   
   --love.graphics.replaceTransform(love.math.newTransform(0,0,1))
     
-  if options['s'] then stats:draw() end
+  if options['\t'] then stats:draw() end
 end
 
 function love.mousepressed(x, y, button, istouch)
