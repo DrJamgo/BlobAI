@@ -7,22 +7,7 @@ require "blob"
 require "player"
 require "stats"
 
-require "nn"
-require "profiler"
-
--- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
-
-net1 = nn.Sequential()
-net1:add(nn.Linear(8, 6))
-net1:add(nn.ReLU())
-net1:add(nn.Linear(6, 4))
-net1:add(nn.ReLU())
-
-net2 = nn.Sequential()
-net2:add(nn.Linear(4, 4))
-net2:add(nn.ReLU())
-net2:add(nn.Linear(4, 4))
-net2:add(nn.ReLU())
+love.math.setRandomSeed(7)
 
 function startProfile()
   calls, total, this = {}, {}, {}
@@ -64,8 +49,8 @@ box2d_world = love.physics.newWorld(0, 0, true)
 FOODSIZE = 5
 
 world = {
-  sizex=100,
-  sizey=100,
+  sizex=200,
+  sizey=200,
   box2d_world=box2d_world
 }
 
@@ -85,11 +70,11 @@ function love.load()
   
   world.blobs = {}
   
-  for i=1,10 do
-    world.blobs[i] = Blob(world, love.math.random() * world.sizex, love.math.random() * world.sizey)
-  end
+  --for i=1,10 do
+  --  world.blobs[i] = Blob(world, love.math.random() * world.sizex, love.math.random() * world.sizey)
+  --end
   
-  world.player = Player(world, 0.5 * world.sizex, 0. * world.sizey, nil, {1,1,1,0.7})
+  world.player = Player(world, 0.5 * world.sizex, 0.5 * world.sizey, nil, {1,1,1,0.7})
   table.insert(world.blobs, world.player)
   
   love.window.setMode( 800, 800)
@@ -99,18 +84,26 @@ end
 local foodspawn = 0
 
 function love.update(dt)
+  local dt = math.min(dt, 0.1)
   local totaltime = 0
-  for i=1,1 do
+  local steps = (options['y'] and 5) or 1
+  for i=1,steps do
     start_time = love.timer.getTime()
     
     world.box2d_world:update(dt, 1, 1)
     
     for k,blob in pairs(world.blobs) do
       blob:update(dt)
-      if blob.size < 2 then
+      if blob.deleteme then
         world.blobs[k] = nil
       end
-      --doNet(torch.rand(8))
+    end
+    
+    for k,food in pairs(world.food) do
+      if food.food <= 0 then
+        world.food[k] = nil
+      end
+      food.food = math.min(FOODSIZE, food.food + 1 * dt)
     end
     
     foodspawn = foodspawn - dt
@@ -119,7 +112,7 @@ function love.update(dt)
       world.food[#world.food+1] = {
         x=love.math.random() * world.sizex,
         y=love.math.random() * world.sizey,
-        food=FOODSIZE
+        food=1
       }
     end
     
@@ -148,11 +141,13 @@ end
 
 function love.draw()
   
-  sx = (love.graphics.getWidth()) / (world.sizex + 20)
-  --transform = love.math.newTransform( 10 * sx, 10 * sx, 0, sx, sx)
-  
-  local s = world.player.sense
-  transform = love.math.newTransform(world.player.sense * s,world.player.sense * s, 0, s, s, world.player.body:getX(), world.player.body:getY())
+  if options['v'] then
+    local sx = (love.graphics.getWidth()) / (world.sizex + 20)
+    transform = love.math.newTransform( 10 * sx, 10 * sx, 0, sx, sx)
+  elseif world.player then
+    local s = world.player.sense
+    transform = love.math.newTransform(world.player.sense * s,world.player.sense * s, 0, s, s, world.player.body:getX(), world.player.body:getY())
+  end
   
   love.graphics.replaceTransform( transform )
   
@@ -166,9 +161,12 @@ function love.draw()
     blob:draw()
   end
   
-  --love.graphics.replaceTransform(love.math.newTransform(0,0,1))
+  love.graphics.replaceTransform(love.math.newTransform(0,0,0))
     
   if options['\t'] then stats:draw() end
+  
+  world.player:drawNet()
+  
 end
 
 function love.mousepressed(x, y, button, istouch)

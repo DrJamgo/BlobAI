@@ -18,7 +18,7 @@ function Creature:update(dt)
   for k,food in pairs(self.world.food) do
     dx = food.x - self.body:getX()
     dy = food.y - self.body:getY()
-    local dist = math.sqrt(dx * dx + dy * dy)
+    local dist = math.max(math.abs(dx), math.abs(dy))
     if dist < self.sense then
       table.insert(objects, food)
     end
@@ -36,11 +36,10 @@ function Creature:update(dt)
 end
 
 function Creature:_move(dx,dy)
-  self.body:setLinearVelocity(dx * self.speed, dy * self.speed)
+  local norm = math.max(0.1, math.sqrt(dx * dx + dy * dy))
+  self.body:setLinearVelocity(dx * self.speed / norm, dy * self.speed / norm)
   if dx or dy then
     self.dir = math.atan(dy, dx)
-    self.dx = dx
-    self.dy = dy
   end
 end
 
@@ -49,7 +48,7 @@ function Creature:_eat(objects, dt)
     dx = food.x - self.body:getX()
     dy = food.y - self.body:getY()
     local dist = math.sqrt(dx * dx + dy * dy)
-    if food.food > 0 and dist <= math.pow(self.size + 2,0.5) then
+    if food.food > 0 and dist <= math.pow(self.size + 2,0.5) + math.pow(food.food, 0.5) then
       local eat_rate = 0.3 * self.size
       local eat = math.min(food.food, eat_rate * dt)
       self.size = self.size + eat
@@ -62,7 +61,7 @@ end
 function Creature:_reproduce()
   if not self.reproduce or self.reproduce <= 0 then
     self.size = self.size / 2
-    local new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
+    local new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size / 2, self.color)
     self.world.blobs[#self.world.blobs+1] = new_blob
     self.reproduce = 5
   end
@@ -79,15 +78,19 @@ end
 function Creature:_updateStatus(dt)
   if self.reproduce and self.reproduce > 0 then self.reproduce = self.reproduce - dt end
   self.size = self.size - 0.1 * dt
+  if self.size < 2 then
+    self.deleteme = true
+  end
 end
 
 function Creature:draw()
   love.graphics.setColor(unpack(self.color or {1,1,1}))
   love.graphics.setLineWidth(0.1)
   love.graphics.circle("fill", self.body:getX(), self.body:getY(), self.shape:getRadius())
-  if options['r'] then
+  if options['v'] and options['g'] then
     love.graphics.rectangle("line", self.body:getX() - self.sense, self.body:getY() - self.sense, self.sense * 2, self.sense * 2)
   end
+  
   
   --love.graphics.print(self.size, self.body:getX(), self.body:getY(), 0, 0.3)
 end
