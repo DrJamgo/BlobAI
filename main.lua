@@ -7,7 +7,56 @@ require "blob"
 require "stats"
 
 require "nn"
+require "profiler"
 
+-- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
+
+net1 = nn.Sequential()
+net1:add(nn.Linear(8, 6))
+net1:add(nn.ReLU())
+net1:add(nn.Linear(6, 4))
+net1:add(nn.ReLU())
+
+net2 = nn.Sequential()
+net2:add(nn.Linear(4, 4))
+net2:add(nn.ReLU())
+net2:add(nn.Linear(4, 4))
+net2:add(nn.ReLU())
+
+function startProfile()
+  calls, total, this = {}, {}, {}
+  debug.sethook(function(event)
+    local i = debug.getinfo(2, "Sln")
+    if i.what ~= 'Lua' then return end
+    local func = i.name or (i.source..':'..i.linedefined)
+    if event == 'call' then
+      this[func] = os.clock()
+    else
+      local time = os.clock() - this[func]
+      total[func] = (total[func] or 0) + time
+      calls[func] = (calls[func] or 0) + 1
+    end
+  end, "cr")
+end
+
+function endProfile()
+  -- the code to debug ends here; reset the hook
+  debug.sethook()
+end
+
+function printProfile()
+  -- print the results
+  for f,time in pairs(total) do
+    print(("Function %s took %.3f seconds after %d calls"):format(f, time, calls[f]))
+  end
+end
+
+function doNet(input)
+  for j=1,16 do
+    output = net1:forward(input)
+  end
+  output2 = net2:forward(output)
+end
 
 box2d_world = love.physics.newWorld(0, 0, true)
 
@@ -46,9 +95,8 @@ end
 local foodspawn = 0
 
 function love.update(dt)
-  
   local totaltime = 0
-  for i=1,10 do
+  for i=1,1 do
     start_time = love.timer.getTime()
     
     world.box2d_world:update(dt, 1, 1)
@@ -58,6 +106,7 @@ function love.update(dt)
       if blob.size < 2 then
         world.blobs[k] = nil
       end
+      --doNet(torch.rand(8))
     end
     
     foodspawn = foodspawn - dt
@@ -97,13 +146,13 @@ function love.draw()
   transform = love.math.newTransform( 10 * sx, 10 * sx, 0, sx, sx)
   love.graphics.replaceTransform( transform )
   
-  for k,blob in pairs(world.blobs) do
-    blob:draw()
-  end
-  
-  love.graphics.setColor(0,1,0)
+  love.graphics.setColor(0,1,0, 0.2)
   for k,food in pairs(world.food) do
     love.graphics.circle("fill", food.x, food.y, math.pow(food.food, 0.5))
+  end
+  
+  for k,blob in pairs(world.blobs) do
+    blob:draw()
   end
   
   --love.graphics.replaceTransform(love.math.newTransform(0,0,1))

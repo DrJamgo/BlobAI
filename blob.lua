@@ -12,12 +12,13 @@ setmetatable(Blob, {
 })
 
 function Blob:_init(world, x,y,size)
+  Creature:_init(self, world, x, y)
   self.size = size or 7
   self.splitsize = 10
   self.sense = 20
   self.speed = 5
   self.world = world
-  self.color = {x / 100, y / 100, math.random()}
+  self.color = {x / 100, y / 100, math.random(), 0.8}
   
   self.body = love.physics.newBody(world.box2d_world, x, y, "dynamic" )
   self.body:setFixedRotation(true)
@@ -25,7 +26,49 @@ function Blob:_init(world, x,y,size)
   local fixture = love.physics.newFixture( self.body, self.shape, 1)
 end
 
-function Blob:update(dt)
+function Blob:_findClosestFood(objects)
+  local closestFood = nil
+  local closestDist = nil
+  local closestDx = nil
+  local closestDy = nil
+  for k,food in pairs(objects) do
+    if food.food and food.food > 0 then
+      dx = food.x - self.body:getX()
+      dy = food.y - self.body:getY()
+      local dist = math.sqrt(dx * dx + dy * dy)
+      if closestDist == nil or dist < closestDist then
+        closestDist = dist
+        closestFood = food
+        closestDx = dx
+        closestDy = dy
+      end
+    end
+  end
+  
+  return closestFood, closestDist, closestDx, closestDy
+end
+
+function Blob:process(dt, objects)
+  local output = {}
+  local closestFood, closestDist, dx, dy = self:_findClosestFood(objects)
+  
+  if closestDist then
+    if closestDist < math.pow(self.size - 1,0.5) then
+      output.eat = true
+    else
+      output.dx = dx
+      output.dy = dy
+    end
+  else
+    -- do nothing, no food in sight
+  end
+  
+  -- TODO: handle reproduction
+  
+  return output
+end
+
+function Blob:uupdate(dt)
   local dist = 1000
   local next_food
   local food_dir
@@ -47,22 +90,6 @@ function Blob:update(dt)
       local eat = math.min(next_food.food, eat_rate * dt)
       self.size = self.size + eat
       next_food.food = next_food.food - eat
-      
-      
-      if self.size >= self.splitsize then
-        
-        new_splitsize = math.max(5,self.splitsize * math.sqrt(math.random() + 0.5))
-        new_speed = self.speed * math.sqrt(math.random() + 0.5)
-        
-        new_blob = Blob(self.world, self.body:getX() + math.cos(food_dir) * self.size, self.body:getY() + math.sin(food_dir) * self.size, self.size / 2)
-        
-        self.size = self.size / 2
-        new_blob.speed = new_speed
-        for i=1,3 do
-          new_blob.color[i] = math.max(0,math.min(1, self.color[i] + (math.random() - 0.5) * 0.2))
-        end
-        self.world.blobs[#self.world.blobs+1] = new_blob
-      end
     else
       dir = food_dir
     end
@@ -84,8 +111,5 @@ function Blob:update(dt)
   else
     self.body:setLinearVelocity(0,0)
   end
-  self.body:getFixtureList()[1]:destroy()
-  self.shape:setRadius(math.pow(self.size,0.5))
-  love.physics.newFixture( self.body, self.shape, 1)
-  self.body:setMass(self.size)
+  
 end
