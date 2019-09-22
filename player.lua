@@ -74,7 +74,7 @@ function Player:process(dt, objects)
   --netOutput[4] = (netOutput[4] > 0.5) and 1 or 0
   
   self.control = 'player'
-  if not options['x'] then
+  if options['x'] then
     self.control = 'script'
     output = Blob.process(self, dt, objects)
   end
@@ -121,30 +121,33 @@ end
 
 function Player:drawNet()
   
-  love.graphics.print("epoch="..tostring(self.epoch).."   control="..self.control, 50, 10, 0, 1)
-  
-  love.graphics.print("input", 30, 40, 0, 1)
-  for i=1,self.input:size()[1] do
-    love.graphics.setColor(self.input[i],0,-self.input[i],1)
-    love.graphics.circle("fill", 50, 50 + i*30, 10)
-    love.graphics.setColor(1,1,1,1)
-    love.graphics.circle("line", 50, 50 + i*30, 10)
-  end
-  
-  love.graphics.print("script", 80, 40, 0, 1)
-  for i=1,self.shallOutput:size()[1] do
-    love.graphics.setColor(self.shallOutput[i],0,-self.shallOutput[i],1)
-    love.graphics.circle("fill", 100, 50 + i*30, 10)
-    love.graphics.setColor(1,1,1,1)
-    love.graphics.circle("line", 100, 50 + i*30, 10)
-  end
-  love.graphics.print("net", 130, 40, 0, 1)
-  for i=1,self.netOutput:size()[1] do
-    love.graphics.setColor(self.netOutput[i],0,-self.netOutput[i],1)
-    love.graphics.circle("fill", 150, 50 + i*30, 10)
-    love.graphics.setColor(1,1,1,1)
-    love.graphics.circle("line", 150, 50 + i*30, 10)
-    love.graphics.print(tostring(self.netOutput[i]), 170, 50 + i*30)
+  if self.epoch then
+    
+    love.graphics.print("epoch="..tostring(self.epoch).."   control="..self.control, 50, 10, 0, 1)
+    
+    love.graphics.print("input", 30, 40, 0, 1)
+    for i=1,self.input:size()[1] do
+      love.graphics.setColor(self.input[i],0,-self.input[i],1)
+      love.graphics.circle("fill", 50, 50 + i*30, 10)
+      love.graphics.setColor(1,1,1,1)
+      love.graphics.circle("line", 50, 50 + i*30, 10)
+    end
+    
+    love.graphics.print("script", 80, 40, 0, 1)
+    for i=1,self.shallOutput:size()[1] do
+      love.graphics.setColor(self.shallOutput[i],0,-self.shallOutput[i],1)
+      love.graphics.circle("fill", 100, 50 + i*30, 10)
+      love.graphics.setColor(1,1,1,1)
+      love.graphics.circle("line", 100, 50 + i*30, 10)
+    end
+    love.graphics.print("net", 130, 40, 0, 1)
+    for i=1,self.netOutput:size()[1] do
+      love.graphics.setColor(self.netOutput[i],0,-self.netOutput[i],1)
+      love.graphics.circle("fill", 150, 50 + i*30, 10)
+      love.graphics.setColor(1,1,1,1)
+      love.graphics.circle("line", 150, 50 + i*30, 10)
+      love.graphics.print(tostring(self.netOutput[i]), 170, 50 + i*30)
+    end
   end
 
 end
