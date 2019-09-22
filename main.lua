@@ -97,6 +97,11 @@ function love.update(dt)
       if blob.deleteme then
         world.blobs[k] = nil
       end
+      
+      if blob.body:getX() < 0 then blob.body:setX(0) end
+      if blob.body:getY() < 0 then blob.body:setY(0) end
+      if blob.body:getX() > world.sizex then blob.body:setX(world.sizex) end
+      if blob.body:getY() > world.sizey then blob.body:setY(world.sizey) end
     end
     
     for k,food in pairs(world.food) do

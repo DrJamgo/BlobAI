@@ -56,7 +56,8 @@ function Blob:process(dt, objects)
   if closestDist then
     if closestDist < math.pow(self.size,0.5) + math.pow(closestFood.food, 0.5) then
       output.eat = true
-    else
+    end
+    if closestDist > 1 then
       output.dx = dx
       output.dy = dy
     end
