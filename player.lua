@@ -26,20 +26,21 @@ end
 
 myCriterion = {}
 function myCriterion:forward(pred, target)
-  err = pred - target
-  return err:cmul(err):sum()
+  return self:backward(pred, target):abs():sum()
 end
 
 function myCriterion:backward(pred, target)
-  return pred - target
+  local err = pred - target
+  err:cmul(torch.abs(err))
+  return err
 end
 
 function trainNet()
   local epoch
   local criterion = myCriterion
 
-  for epoch=1,10 do
-    print("====i="..tostring(i).."-====")
+  for epoch=1,40 do
+    print("====epoch="..tostring(epoch).."-====")
     dataset_index = 1
     local trained = false
     net1:zeroGradParameters()
@@ -52,7 +53,7 @@ function trainNet()
       local f = criterion:forward(netOutput, shallOutput)
       local gradOutput = criterion:backward(netOutput, shallOutput)
 --      local err = torch.abs(gradOutput):sum()
-      if dataset_index % 10 ~= 0 then
+      if dataset_index % 10 > 1 then
         local gradInput = net1:backward(input, gradOutput)
         train = train + f
       else
@@ -60,12 +61,12 @@ function trainNet()
       end
       dataset_index = dataset_index + 1
     end
-    test = test / dataset_index
-    train = train / dataset_index
+    test = test / (dataset_index * 0.2)
+    train = train / (dataset_index * 0.8)
     print("train:" .. tostring(train))
     print("test:" .. tostring(test))
-    if epoch > 10 and test < 0.1 then break end
-    net1:updateParameters(0.5 / dataset_index)
+    if epoch > 10 and test < 0.01 then break end
+    net1:updateParameters(1 / dataset_index)
   end
   if dataset_index > 1 then
     torch.save("cache/net1", net1)
@@ -79,7 +80,7 @@ else
 end
 
 function Player:process(dt, objects)
-  self.epoch = self.epoch or 1
+  self.ticks = self.ticks or 1
   local output = {}
   
   local closestFood, closestDist, dx, dy = self:_findClosestFood(objects)
@@ -90,11 +91,8 @@ function Player:process(dt, objects)
   input[3] = (closestFood and 1) or 0
   input[4] = self.size
   
-  
   local netOutput = net1:forward(input)
-  --netOutput[3] = (netOutput[3] > 0.5) and 1 or 0 
-  --netOutput[4] = (netOutput[4] > 0.5) and 1 or 0
-  
+
   self.control = 'player'
   if options['x'] then
     self.control = 'script'
@@ -129,23 +127,23 @@ function Player:process(dt, objects)
     output.reproduce = netOutput[4] > 0.5
   end
   
-  torch.save("cache/input"..tostring(self.epoch), input)
-  torch.save("cache/shallOutput"..tostring(self.epoch), shallOutput)
+  torch.save("cache/input"..tostring(self.ticks), input)
+  torch.save("cache/shallOutput"..tostring(self.ticks), shallOutput)
   
   self.shallOutput = shallOutput
   self.netOutput = netOutput
   self.input = input
   
-  self.epoch = self.epoch + 1
+  self.ticks = self.ticks + 1
   
   return output
 end
 
 function Player:drawNet()
   
-  if self.epoch then
+  if self.ticks then
     
-    love.graphics.print("epoch="..tostring(self.epoch).."   control="..self.control, 50, 10, 0, 1)
+    love.graphics.print("ticks="..tostring(self.ticks).."   control="..self.control, 50, 10, 0, 1)
     
     love.graphics.print("input", 30, 40, 0, 1)
     for i=1,self.input:size()[1] do
