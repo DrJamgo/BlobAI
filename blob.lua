@@ -58,8 +58,8 @@ function Blob:process(dt, objects)
       output.eat = true
     end
     if closestDist > 1 then
-      output.dx = dx
-      output.dy = dy
+      output.dx = math.min(math.max(-1, dx),1)
+      output.dy = math.min(math.max(-1, dy),1)
     end
   else
     -- do nothing, no food in sight

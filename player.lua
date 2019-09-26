@@ -15,37 +15,59 @@ require "nn"
 -- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
 
 local net1 = nn.Sequential()
-net1:add(nn.Linear(4, 6))
+net1:add(nn.Linear(4, 8))
 net1:add(nn.Sigmoid())
-net1:add(nn.Linear(6, 4))
+net1:add(nn.Linear(8, 4))
 
 function file_exists(name)
    local f=io.open(name,"r")
    if f~=nil then io.close(f) return true else return false end
 end
 
+myCriterion = {}
+function myCriterion:forward(pred, target)
+  err = pred - target
+  return err:cmul(err):sum()
+end
+
+function myCriterion:backward(pred, target)
+  return pred - target
+end
+
 function trainNet()
   local epoch
-  for i=1,10 do
+  local criterion = myCriterion
+
+  for epoch=1,10 do
     print("====i="..tostring(i).."-====")
-    epoch = 1
+    dataset_index = 1
     local trained = false
     net1:zeroGradParameters()
-    while file_exists("cache/input"..tostring(epoch)) do
-      if epoch % 10 ~= 0 then
-        --print("---epoch="..epoch.."----")
-        local input = torch.load("cache/input"..tostring(epoch))
-        local shallOutput = torch.load("cache/shallOutput"..tostring(epoch))
-        local netOutput = net1:forward(input)
-        
-        local gradOutput = - shallOutput + netOutput
+    local train = 0
+    local test = 0
+    while file_exists("cache/input"..tostring(dataset_index)) do
+      local input = torch.load("cache/input"..tostring(dataset_index))
+      local shallOutput = torch.load("cache/shallOutput"..tostring(dataset_index))
+      local netOutput = net1:forward(input)
+      local f = criterion:forward(netOutput, shallOutput)
+      local gradOutput = criterion:backward(netOutput, shallOutput)
+--      local err = torch.abs(gradOutput):sum()
+      if dataset_index % 10 ~= 0 then
         local gradInput = net1:backward(input, gradOutput)
+        train = train + f
+      else
+        test = test + f
       end
-      epoch = epoch + 1
+      dataset_index = dataset_index + 1
     end
-    net1:updateParameters(0.1 / epoch)
+    test = test / dataset_index
+    train = train / dataset_index
+    print("train:" .. tostring(train))
+    print("test:" .. tostring(test))
+    if epoch > 10 and test < 0.1 then break end
+    net1:updateParameters(0.5 / dataset_index)
   end
-  if epoch > 1 then
+  if dataset_index > 1 then
     torch.save("cache/net1", net1)
   end
 end
@@ -82,7 +104,7 @@ function Player:process(dt, objects)
   if love.keyboard.isDown('d') then output.dx = 1 end
   if love.keyboard.isDown('s') then output.dy = 1 end
   if love.keyboard.isDown('w') then output.dy = -1 end
-  if love.keyboard.isDown('e') then output.eat = true end
+  if love.keyboard.isDown('u') then output.eat = true end
   if love.keyboard.isDown('q') then output.reproduce = true end
   
   local shallOutput = torch.Tensor(4)
@@ -107,8 +129,8 @@ function Player:process(dt, objects)
     output.reproduce = netOutput[4] > 0.5
   end
   
-  --torch.save("cache/input"..tostring(self.epoch), input)
-  --torch.save("cache/shallOutput"..tostring(self.epoch), shallOutput)
+  torch.save("cache/input"..tostring(self.epoch), input)
+  torch.save("cache/shallOutput"..tostring(self.epoch), shallOutput)
   
   self.shallOutput = shallOutput
   self.netOutput = netOutput

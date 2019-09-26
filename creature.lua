@@ -61,7 +61,7 @@ end
 function Creature:_reproduce()
   if not self.reproduce or self.reproduce <= 0 then
     self.size = self.size / 2
-    local new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size / 2, self.color)
+    local new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
     self.world.blobs[#self.world.blobs+1] = new_blob
     self.reproduce = 5
   end
@@ -77,7 +77,7 @@ end
 
 function Creature:_updateStatus(dt)
   if self.reproduce and self.reproduce > 0 then self.reproduce = self.reproduce - dt end
-  self.size = self.size - 0.1 * dt
+  self.size = self.size - 0.05 * dt
   if self.size < 2 then
     self.deleteme = true
   end
