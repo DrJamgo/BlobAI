@@ -40,7 +40,7 @@ function trainNet()
   function dataset:size() return #dataset end
   
   trainer = nn.StochasticGradient(net1, criterion)
-  trainer.learningRate = 0.05
+  trainer.learningRate = 0.01
   trainer:train(dataset)
 
   torch.save("cache/net1", net1)
