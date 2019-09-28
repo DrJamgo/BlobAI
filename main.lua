@@ -2,11 +2,12 @@ if arg[#arg] == "-debug" then require("mobdebug").start() end
 
 require "find_torch"
 
+require "tests"
 require "blob"
 require "player"
 require "stats"
 
-love.math.setRandomSeed(7)
+love.math.setRandomSeed(0)
 
 function startProfile()
   calls, total, this = {}, {}, {}
@@ -59,7 +60,7 @@ function love.load()
 
   world.food = {}
   
-  for i=1,40 do
+  for i=1,80 do
     world.food[i] = {
       x=love.math.random() * world.sizex,
       y=love.math.random() * world.sizey,
@@ -113,7 +114,7 @@ function love.update(dt)
     
     foodspawn = foodspawn - dt
     if foodspawn < 0 then
-      foodspawn = 1
+      foodspawn = 0.5
       world.food[#world.food+1] = {
         x=love.math.random() * world.sizex,
         y=love.math.random() * world.sizey,

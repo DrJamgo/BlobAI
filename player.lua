@@ -12,12 +12,12 @@ setmetatable(Player, {
 })
 
 require "nn"
+require "gnuplot"
 -- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
-
 
 local net1 = nn.Sequential()
 net1:add(nn.Linear(4, 12))
-net1:add(nn.Sigmoid())
+net1:add(nn.Tanh())
 net1:add(nn.Linear(12, 4))
 net1:add(nn.Tanh())
 
@@ -43,13 +43,18 @@ function trainNet()
   local epoch
   local criterion = myCriterion
 
-  for epoch=1,40 do
+  local train = {}
+  local test   = {}
+  for epoch=1,100 do
     print("====epoch="..tostring(epoch).."-====")
     dataset_index = 1
     local trained = false
     net1:zeroGradParameters()
-    local train = 0
-    local test = 0
+    train[epoch] = 0
+    test[epoch] = 0
+    
+    local losses = {}
+
     while file_exists("cache/input"..tostring(dataset_index)) do
       local input = torch.load("cache/input"..tostring(dataset_index))
       local shallOutput = torch.load("cache/shallOutput"..tostring(dataset_index))
@@ -58,18 +63,28 @@ function trainNet()
       local gradOutput = criterion:backward(netOutput, shallOutput)
       if dataset_index % 10 > 1 then
         local gradInput = net1:backward(input, gradOutput)
-        train = train + loss
+        losses[#losses+1] = loss
       else
-        test = test + loss
+        test[epoch] = test[epoch] + loss
       end
+      
       dataset_index = dataset_index + 1
     end
-    test = test / (dataset_index * 0.2)
-    train = train / (dataset_index * 0.8)
-    print("train:" .. tostring(train))
-    print("test:" .. tostring(test))
-    if epoch > 10 and test < 0.05 then break end
-    net1:updateParameters((2) / dataset_index)
+
+    if #losses > 0 then
+      local Tlosses = torch.Tensor(losses)
+      train[epoch] = Tlosses:sum() / Tlosses:size(1) / (0.8)
+      test[epoch] = test[epoch] / Tlosses:size(1) / (0.2)
+
+      --gnuplot.figure(1)
+      --gnuplot.plot({'Loss',torch.Tensor(losses),'|'})
+
+      gnuplot.figure(0)
+      gnuplot.plot({'Train',torch.Tensor(train)}, {'Test',torch.Tensor(test)})
+      if epoch > 10 and train[epoch] < 0.05 then break end
+      net1:updateParameters((2) / dataset_index)
+    end
+    
   end
   if dataset_index > 1 then
     torch.save("cache/net1", net1)
