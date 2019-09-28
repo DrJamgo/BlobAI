@@ -2,12 +2,12 @@ require "nn"
 require "gnuplot"
 
 local net1 = nn.Sequential()
-net1:add(nn.Euclidean(3,3))
+net1:add(nn.Max(1))
 
-net1:zeroGradParameters()
-local input1 = torch.Tensor({1,2,3})
-local output1 = net1:forward(input1)
+local input = torch.Tensor({{9,2,3},{3,4,5},{6,7,8}})
 
---gnuplot.plot({'I',input1,'|',},{'O', output1, 'x'})
+print(input)
+print(net1:forward(input))
+
 
 return nil

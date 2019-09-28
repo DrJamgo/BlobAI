@@ -15,11 +15,25 @@ require "nn"
 require "gnuplot"
 -- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
 
+local own = nn.Module()
+function own:updateGradInput(input, gradOutput)
+  return gradOutput:clone()
+end
+function own:updateOutput(input)
+  self.output = input:clone()
+  return self.output
+end
+
 local net1 = nn.Sequential()
 net1:add(nn.Linear(4, 6))
 net1:add(nn.Tanh())
+net1:add(own)
 net1:add(nn.Linear(6, 4))
 net1:add(nn.Tanh())
+
+for i,module in ipairs(net1:listModules()) do
+   print(module)
+end
 
 function file_exists(name)
    local f=io.open(name,"r")
