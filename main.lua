@@ -2,7 +2,7 @@ if arg[#arg] == "-debug" then require("mobdebug").start() end
 
 require "find_torch"
 
-require "tests"
+--require "tests"
 require "blob"
 require "player"
 require "stats"

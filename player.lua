@@ -16,9 +16,9 @@ require "gnuplot"
 -- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
 
 local net1 = nn.Sequential()
-net1:add(nn.Linear(4, 12))
+net1:add(nn.Linear(4, 6))
 net1:add(nn.Tanh())
-net1:add(nn.Linear(12, 4))
+net1:add(nn.Linear(6, 4))
 net1:add(nn.Tanh())
 
 function file_exists(name)
@@ -26,69 +26,24 @@ function file_exists(name)
    if f~=nil then io.close(f) return true else return false end
 end
 
-myCriterion = {}
-function myCriterion:forward(pred, target)
-  return self:backward(pred, target):abs():sum()
-end
-
-function myCriterion:backward(pred, target)
-  local weigths = torch.Tensor({{1,1,1,1}})
-  local err = pred - target
-  err:cmul(torch.abs(err)):cmul(weigths)
-  err = err / weigths:sum() * weigths:size()[1]
-  return err
-end
-
 function trainNet()
   local epoch
-  local criterion = myCriterion
+  local criterion = nn.MSECriterion()
 
-  local train = {}
-  local test   = {}
-  for epoch=1,100 do
-    print("====epoch="..tostring(epoch).."-====")
-    dataset_index = 1
-    local trained = false
-    net1:zeroGradParameters()
-    train[epoch] = 0
-    test[epoch] = 0
-    
-    local losses = {}
-
-    while file_exists("cache/input"..tostring(dataset_index)) do
-      local input = torch.load("cache/input"..tostring(dataset_index))
-      local shallOutput = torch.load("cache/shallOutput"..tostring(dataset_index))
-      local netOutput = net1:forward(input)
-      local loss = criterion:forward(netOutput, shallOutput)
-      local gradOutput = criterion:backward(netOutput, shallOutput)
-      if dataset_index % 10 > 1 then
-        local gradInput = net1:backward(input, gradOutput)
-        losses[#losses+1] = loss
-      else
-        test[epoch] = test[epoch] + loss
-      end
-      
-      dataset_index = dataset_index + 1
-    end
-
-    if #losses > 0 then
-      local Tlosses = torch.Tensor(losses)
-      train[epoch] = Tlosses:sum() / Tlosses:size(1) / (0.8)
-      test[epoch] = test[epoch] / Tlosses:size(1) / (0.2)
-
-      --gnuplot.figure(1)
-      --gnuplot.plot({'Loss',torch.Tensor(losses),'|'})
-
-      gnuplot.figure(0)
-      gnuplot.plot({'Train',torch.Tensor(train)}, {'Test',torch.Tensor(test)})
-      if epoch > 10 and train[epoch] < 0.05 then break end
-      net1:updateParameters((2) / dataset_index)
-    end
-    
+  local dataset = {}
+  while file_exists("cache/input"..tostring(#dataset+1)) do
+    local input = torch.load("cache/input"..tostring(#dataset+1))
+    local shallOutput = torch.load("cache/shallOutput"..tostring(#dataset+1))
+    dataset[#dataset+1] = {input, shallOutput}
   end
-  if dataset_index > 1 then
-    torch.save("cache/net1", net1)
-  end
+  
+  function dataset:size() return #dataset end
+  
+  trainer = nn.StochasticGradient(net1, criterion)
+  trainer.learningRate = 0.05
+  trainer:train(dataset)
+
+  torch.save("cache/net1", net1)
 end
 
 if file_exists("cache/net1") then
