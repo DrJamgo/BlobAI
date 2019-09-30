@@ -25,22 +25,10 @@ function own:updateOutput(input)
   return self.output
 end
 
-local net2 = nn.Sequential()
-net2:add(nn.Linear(5, 4))
-net2:add(nn.Tanh())
-net2:add(nn.Min(1))
-
-local net3 = nn.Sequential()
-net3:add(nn.Linear(5, 4))
-net3:add(nn.Tanh())
-net3:add(nn.Max(1))
-
-local net4 = nn.Concat(1)
-net4:add(net2)
-net4:add(net3)
-
 local net1 = nn.Sequential()
-net1:add(net4)
+net1:add(nn.Linear(5, 8))
+net1:add(nn.Tanh())
+net1:add(nn.Max(1))
 net1:add(nn.Linear(8, 8))
 net1:add(nn.Tanh())
 net1:add(nn.Linear(8, 4))
