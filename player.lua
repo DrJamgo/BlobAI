@@ -111,12 +111,6 @@ function Player:process(dt, objects)
   end
 
   local netOutput = net1:forward(input)
-  local gradInput = net1:backward(input, netOutput)
-  
-  self.net = {
-      input=input,
-      gradInput=gradInput
-  }
 
   self.control = 'player'
   if options['x'] then
@@ -142,6 +136,16 @@ function Player:process(dt, objects)
     output.dy = netOutput[2]
     output.eat = netOutput[3] > 0.1
     output.reproduce = netOutput[4] > 0.5
+    
+    if options['m'] then
+      local gradInput = net1:backward(input, netOutput)
+      
+      self.net = {
+          input=input,
+          gradInput=gradInput
+      }
+    end
+
   end
   
   torch.save("cache/input"..tostring(self.ticks), input)
@@ -159,7 +163,7 @@ end
 function Player:draw()
   Blob.draw(self)
   
-  if self.net and options['n'] then
+  if self.net and options['m'] then
     for c=1,self.net.input:size(1) do
       local input = self.net.input[c]
       local STEP_Y = 1.2
