@@ -115,6 +115,12 @@ function Player:process(dt, objects)
   end
 
   local netOutput = net1:forward(input)
+  local gradInput = net1:backward(input, netOutput)
+  
+  self.net = {
+      input=input,
+      gradInput=gradInput
+  }
 
   self.control = 'player'
   if options['x'] then
@@ -152,6 +158,34 @@ function Player:process(dt, objects)
   self.ticks = self.ticks + 1
   
   return output
+end
+
+function Player:draw()
+  Blob.draw(self)
+  
+  if self.net and options['n'] then
+    for c=1,self.net.input:size(1) do
+      local input = self.net.input[c]
+      local STEP_Y = 1.2
+      local x = self.body:getX()+input[1]
+      local y = self.body:getY()+input[2]
+      for r=1,self.net.input:size(2) do
+        local node = self.net.input[c][r]
+        local value = node / 10
+        local Y = y-(((self.net.input:size(2) / 2)-r+0.5)*STEP_Y)
+        love.graphics.setColor(value,0,-value,1)
+        love.graphics.circle("fill", x, Y, 0.5)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.circle("line", x, Y, 0.5)
+        love.graphics.print(string.format("%.2f",tostring(node)), x + STEP_Y, Y,nil, 0.05)
+        
+        local grad = self.net.gradInput[c][r]
+        value = grad * 10
+        love.graphics.setColor(value,0,-value,math.abs(value))
+        love.graphics.line(x,Y,self.body:getX(),self.body:getY())
+      end
+    end
+  end
 end
 
 function Player:drawNet()
