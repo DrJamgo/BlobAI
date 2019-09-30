@@ -28,14 +28,10 @@ end
 local net2 = nn.Sequential()
 net2:add(nn.Linear(5, 4))
 net2:add(nn.Tanh())
-net2:add(nn.Linear(4, 4))
-net2:add(nn.Tanh())
 net2:add(nn.Min(1))
 
 local net3 = nn.Sequential()
 net3:add(nn.Linear(5, 4))
-net3:add(nn.Tanh())
-net3:add(nn.Linear(4, 4))
 net3:add(nn.Tanh())
 net3:add(nn.Max(1))
 
