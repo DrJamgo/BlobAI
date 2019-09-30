@@ -12,6 +12,7 @@ setmetatable(Player, {
 })
 
 require "nn"
+require "torch"
 require "gnuplot"
 -- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
 
@@ -24,11 +25,29 @@ function own:updateOutput(input)
   return self.output
 end
 
+local net2 = nn.Sequential()
+net2:add(nn.Linear(5, 4))
+net2:add(nn.Tanh())
+net2:add(nn.Linear(4, 4))
+net2:add(nn.Tanh())
+net2:add(nn.Min(1))
+
+local net3 = nn.Sequential()
+net3:add(nn.Linear(5, 4))
+net3:add(nn.Tanh())
+net3:add(nn.Linear(4, 4))
+net3:add(nn.Tanh())
+net3:add(nn.Max(1))
+
+local net4 = nn.Concat(1)
+net4:add(net2)
+net4:add(net3)
+
 local net1 = nn.Sequential()
-net1:add(nn.Linear(4, 6))
+net1:add(net4)
+net1:add(nn.Linear(8, 8))
 net1:add(nn.Tanh())
-net1:add(own)
-net1:add(nn.Linear(6, 4))
+net1:add(nn.Linear(8, 4))
 net1:add(nn.Tanh())
 
 for i,module in ipairs(net1:listModules()) do
@@ -40,6 +59,13 @@ function file_exists(name)
    if f~=nil then io.close(f) return true else return false end
 end
 
+local plot = {}
+plot.buffer = {}
+function plotResults(self, iteration, currentError)
+  plot.buffer[iteration] = currentError
+  gnuplot.plot({'Error', torch.Tensor(plot.buffer)})
+end
+
 function trainNet()
   local epoch
   local criterion = nn.MSECriterion()
@@ -49,15 +75,22 @@ function trainNet()
     local input = torch.load("cache/input"..tostring(#dataset+1))
     local shallOutput = torch.load("cache/shallOutput"..tostring(#dataset+1))
     dataset[#dataset+1] = {input, shallOutput}
+    
+    local out = net1:forward(input)
   end
   
-  function dataset:size() return #dataset end
-  
-  trainer = nn.StochasticGradient(net1, criterion)
-  trainer.learningRate = 0.01
-  trainer:train(dataset)
+  if #dataset > 0 then
+    function dataset:size() return #dataset end
+    
+    trainer = nn.StochasticGradient(net1, criterion)
+    trainer.learningRate = 0.01
+    trainer.learningRateDecay = 0.1
+    trainer.maxIteration = 25
+    trainer.hookIteration = plotResults
+    trainer:train(dataset)
 
-  torch.save("cache/net1", net1)
+    torch.save("cache/net1", net1)
+  end
 end
 
 if file_exists("cache/net1") then
@@ -70,14 +103,17 @@ function Player:process(dt, objects)
   self.ticks = self.ticks or 1
   local output = {}
   
-  local closestFood, closestDist, dx, dy = self:_findClosestFood(objects)
-  local input = torch.Tensor(4)
+  local input = torch.Tensor(math.max(#objects,1), 5)
+  input[1]:fill(0)
   
-  input[1] = dx or 0
-  input[2] = dy or 0
-  input[3] = (closestFood and 1) or 0
-  input[4] = self.size
-  
+  for i=1,#objects do
+    input[i][1] = objects[i].x - self.body:getX()
+    input[i][2] = objects[i].y - self.body:getY()
+    input[i][3] = math.sqrt(math.pow(input[i][1], 2) + math.pow(input[i][2], 2))
+    input[i][4] = objects[i].food or 0
+    input[i][5] = self.size
+  end
+
   local netOutput = net1:forward(input)
 
   self.control = 'player'
@@ -97,14 +133,6 @@ function Player:process(dt, objects)
   shallOutput[2] = output.dy or 0
   shallOutput[3] = (output.eat and 1) or 0
   shallOutput[4] = (output.reproduce and 1) or 0
-  
-  local gradOutput = - shallOutput + netOutput
-  
-  for i=1,gradOutput:size()[1] do
-    if gradOutput[i] ~= gradOutput[i] then
-      print("hell")
-    end
-  end
   
   if options['n'] then
     self.control = 'network'
@@ -129,9 +157,10 @@ end
 function Player:drawNet()
   
   if self.ticks then
-    
+    love.graphics.setColor(1,1,1)
     love.graphics.print("ticks="..tostring(self.ticks).."   control="..self.control, 50, 10, 0, 1)
     
+    --[[
     love.graphics.print("input", 30, 40, 0, 1)
     for i=1,self.input:size()[1] do
       love.graphics.setColor(self.input[i],0,-self.input[i],1)
@@ -139,6 +168,7 @@ function Player:drawNet()
       love.graphics.setColor(1,1,1,1)
       love.graphics.circle("line", 50, 50 + i*30, 10)
     end
+    ]]--
     
     love.graphics.print("script", 80, 40, 0, 1)
     for i=1,self.shallOutput:size()[1] do
