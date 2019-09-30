@@ -16,26 +16,30 @@ require "torch"
 require "gnuplot"
 -- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
 
-local own = nn.Module()
-function own:updateGradInput(input, gradOutput)
-  return gradOutput:clone()
-end
-function own:updateOutput(input)
-  self.output = input:clone()
-  return self.output
-end
+local nn_perObject = nn:Sequential()
+nn_perObject:add(nn.Narrow(2, 1, 4))
+nn_perObject:add(nn.Linear(4, 8))
+nn_perObject:add(nn.Tanh())
+nn_perObject:add(nn.Max(1))
+
+local nn_state = nn.Sequential()
+nn_state:add(nn.Narrow(2, 5, 1))
+nn_state:add(nn.Max(1))
+
+local nn_merge = nn.Concat(1)
+nn_merge:add(nn_perObject)
+nn_merge:add(nn_state)
 
 local net1 = nn.Sequential()
-net1:add(nn.Linear(5, 8))
+net1:add(nn_merge)
+net1:add(nn.Linear(9, 6))
 net1:add(nn.Tanh())
-net1:add(nn.Max(1))
-net1:add(nn.Linear(8, 8))
+net1:add(nn.Linear(6, 4))
 net1:add(nn.Tanh())
-net1:add(nn.Linear(8, 4))
-net1:add(nn.Tanh())
+--net1:replace(function(module) return nn.Profile(module, 100, "Player Network") end)
 
 for i,module in ipairs(net1:listModules()) do
-   print(module)
+   --print(module)
 end
 
 function file_exists(name)
@@ -59,8 +63,6 @@ function trainNet()
     local input = torch.load("cache/input"..tostring(#dataset+1))
     local shallOutput = torch.load("cache/shallOutput"..tostring(#dataset+1))
     dataset[#dataset+1] = {input, shallOutput}
-    
-    local out = net1:forward(input)
   end
   
   if #dataset > 0 then
