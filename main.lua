@@ -58,6 +58,7 @@ stats = Stats(world)
 
 function love.load()
 
+  love.graphics.setBackgroundColor( 0.5, 0.5, 0.5, 1 )
   world.food = {}
   
   for i=1,80 do
@@ -109,7 +110,7 @@ function love.update(dt)
       if food.food <= 0 then
         world.food[k] = nil
       end
-      food.food = math.min(FOODSIZE, food.food + 1 * dt)
+      food.food = math.min(FOODSIZE, food.food + 0.1 * dt)
     end
     
     foodspawn = foodspawn - dt
