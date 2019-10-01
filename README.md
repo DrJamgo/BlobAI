@@ -5,7 +5,7 @@ BlobAI is a attempt of a game to train a population of creatures to behave accor
 
 ## Player trained
 Here is an example of the network after is has been traned by the player in about 3000 ticks:
-[click_me](doc/player_trained.mp4)
+[click_me](doc/player_trained.mp4?raw=true)
 
 # Credits
 This game has possible because of many existing tools and artwork. I would like to mention some here.
