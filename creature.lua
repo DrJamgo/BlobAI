@@ -14,23 +14,31 @@ end
 
 function Creature:update(dt)
   -- 1 Find objects in sight
-  local objects = {}
-  for k,food in pairs(self.world.food) do
-    dx = food.x - self.body:getX()
-    dy = food.y - self.body:getY()
+  local objectsInSight = {}
+  local objectsInRange = {}
+  
+  for k,object in pairs(self.world.objects) do
+    dx = object.x - self.body:getX()
+    dy = object.y - self.body:getY()
     local dist = math.max(math.abs(dx), math.abs(dy))
     if dist < self.sense then
-      table.insert(objects, food)
+      table.insert(objectsInSight, object)
+    end
+    dist = math.sqrt(dx*dx+dy*dy)
+    if dist < math.pow(self.size,0.5) + math.pow(object.food or object.hazzard, 0.5) then
+      table.insert(objectsInRange, object)
     end
   end
+  
   -- 2 call process function
-  local output = self:process(dt, objects)
+  local output = self:process(dt, objectsInSight)
   -- 3 execute actions
   self:_move(output.dx or 0, output.dy or 0)
   
-  if output.eat then self:_eat(objects, dt) end
+  if output.eat then self:_eat(objectsInRange, dt) end
   if output.reproduce then self:_reproduce() end
   
+  self:_updateHazzard(dt, objectsInRange)
   self:_updateStatus(dt)
   self:_updatePhysics(dt)
 end
@@ -43,18 +51,17 @@ function Creature:_move(dx,dy)
   end
 end
 
-function Creature:_eat(objects, dt)
-  for k,food in pairs(objects) do
-    dx = food.x - self.body:getX()
-    dy = food.y - self.body:getY()
-    local dist = math.sqrt(dx * dx + dy * dy)
-    if food.food > 0 and dist <= math.pow(self.size + 2,0.5) + math.pow(food.food, 0.5) then
-      local eat_rate = 0.3 * self.size
-      local eat = math.min(food.food, eat_rate * dt)
-      self.size = self.size + eat
-      food.food = food.food - eat
-      break
+function Creature:_eat(objectsInRange, dt)
+  for k,object in pairs(objectsInRange) do
+    local eat_rate = 0.3 * self.size
+    local eat
+    if object.food then
+      eat = math.min(object.food, eat_rate * dt)
+      object.food = object.food - eat
+    else
+      eat = -eat_rate * 2 * dt
     end
+    self.size = self.size + eat
   end
 end
 
@@ -64,6 +71,14 @@ function Creature:_reproduce()
     local new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
     self.world.blobs[#self.world.blobs+1] = new_blob
     self.reproduce = 5
+  end
+end
+
+function Creature:_updateHazzard(dt, objectsInRange)
+  for k,object in pairs(objectsInRange) do
+    if object.hazzard then
+      self.size = self.size - object.hazzard * dt
+    end
   end
 end
 

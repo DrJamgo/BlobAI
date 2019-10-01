@@ -96,7 +96,7 @@ function Player:process(dt, objects)
     input[i][1] = objects[i].x - self.body:getX()
     input[i][2] = objects[i].y - self.body:getY()
     input[i][3] = math.sqrt(math.pow(input[i][1], 2) + math.pow(input[i][2], 2))
-    input[i][4] = objects[i].food or 0
+    input[i][4] = objects[i].food or -objects[i].hazzard
     input[i][5] = self.size
   end
 
@@ -181,7 +181,8 @@ end
 function Player:drawNet()
   
   if self.ticks then
-    love.graphics.setColor(1,1,1)
+    local color = (options['n'] and {1,0,0}) or (options['x'] and {1,1,1}) or {0.5,1,0.5}
+    love.graphics.setColor(unpack(color))
     love.graphics.print("ticks="..tostring(self.ticks).."   control="..self.control, 50, 10, 0, 1)
     
     --[[
@@ -193,7 +194,7 @@ function Player:drawNet()
       love.graphics.circle("line", 50, 50 + i*30, 10)
     end
     ]]--
-    
+    love.graphics.setColor(1,1,1)
     love.graphics.print("script", 80, 40, 0, 1)
     for i=1,self.shallOutput:size()[1] do
       love.graphics.setColor(self.shallOutput[i],0,-self.shallOutput[i],1)

@@ -56,16 +56,29 @@ world = {
 
 stats = Stats(world)
 
-function love.load()
+local foodColor = {0,0.5,0,0.7}
+local hazzardColor = {0.5,0,0,0.7}
 
+function love.load()
+  love.filesystem.setIdentity("BlobAI")
   love.graphics.setBackgroundColor( 0.5, 0.5, 0.5, 1 )
-  world.food = {}
+  world.objects = {}
   
   for i=1,80 do
-    world.food[i] = {
+    world.objects[#world.objects+1] = {
       x=love.math.random() * world.sizex,
       y=love.math.random() * world.sizey,
-      food=FOODSIZE
+      food=FOODSIZE,
+      color=foodColor
+    }
+  end
+  
+  for i=1,40 do
+    world.objects[#world.objects+1] = {
+      x=love.math.random() * world.sizex,
+      y=love.math.random() * world.sizey,
+      hazzard=FOODSIZE * 2,
+      color=hazzardColor
     }
   end
   
@@ -86,7 +99,7 @@ local foodspawn = 0
 
 function love.update(dt)
   if options['p'] then return end
-  local dt = math.min(dt, 0.1)
+  local dt = math.min(dt, 0.033)
   local totaltime = 0
   local steps = (options['y'] and 5) or 1
   for i=1,steps do
@@ -106,23 +119,25 @@ function love.update(dt)
       if blob.body:getY() > world.sizey then blob.body:setY(world.sizey) end
     end
     
-    for k,food in pairs(world.food) do
-      if food.food <= 0 then
-        world.food[k] = nil
+    for k,object in pairs(world.objects) do
+      if object.food then
+        if object.food <= 0 then
+          world.objects[k] = nil
+        end
+        object.food = math.min(FOODSIZE, object.food + 0.1 * dt)
       end
-      food.food = math.min(FOODSIZE, food.food + 0.1 * dt)
     end
     
     foodspawn = foodspawn - dt
     if foodspawn < 0 then
       foodspawn = 0.5
-      world.food[#world.food+1] = {
+      world.objects[#world.objects+1] = {
         x=love.math.random() * world.sizex,
         y=love.math.random() * world.sizey,
-        food=1
+        food=1,
+        color=foodColor
       }
     end
-    
     
     end_time = love.timer.getTime()
 
@@ -150,10 +165,16 @@ function love.keypressed( key, scancode, isrepeat )
   end
 end
 
+local frame = 1
 function love.draw()
   
   if options['p'] then
     love.graphics.print("pause [press P to unpause]", 50, 50)
+  elseif options['c'] then
+    love.graphics.setColor(1,0,0)
+    love.graphics.print("recording..", 50, 50)
+    love.graphics.captureScreenshot('ss_' .. string.format("%04d", frame) .. '.png')
+    frame = frame + 1
   end
   
   if options['v'] then
@@ -166,12 +187,13 @@ function love.draw()
   
   love.graphics.replaceTransform( transform )
   
-  love.graphics.setColor(0,1,0, 0.2)
-  love.graphics.rectangle("line",0,0,world.sizex,world.sizey)
-  for k,food in pairs(world.food) do
-    love.graphics.circle("fill", food.x, food.y, math.pow(food.food, 0.5))
-  end
   
+  love.graphics.rectangle("line",0,0,world.sizex,world.sizey)
+  for k,object in pairs(world.objects) do
+    love.graphics.setColor(unpack(object.color))
+    love.graphics.circle("fill", object.x, object.y, math.pow(object.food or object.hazzard, 0.5))
+  end
+
   for k,blob in pairs(world.blobs) do
     blob:draw()
   end
@@ -181,7 +203,7 @@ function love.draw()
   if options['\t'] then stats:draw() end
   
   world.player:drawNet()
-  
+
 end
 
 function love.mousepressed(x, y, button, istouch)
