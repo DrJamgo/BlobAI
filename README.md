@@ -6,7 +6,7 @@ The game will require the player to understand the world and teach his/her Creat
 The Creatures will try to mimic the bahaviour without understanding what the purpose is.
 
 ### The World
-![screenshot](doc/screensot.png)<br>
+![screenshot](doc/screenshot.png)<br>
 The world consist of 3 objects:
 - Player/Creature (white)
 - Food (green)
