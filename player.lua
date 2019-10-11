@@ -18,7 +18,7 @@ require "gnuplot"
 
 local nn_perObject = nn:Sequential()
 nn_perObject:add(nn.Narrow(2, 1, 4))
-nn_perObject:add(nn.Linear(4, 8))
+nn_perObject:add(nn.Linear(4, 16))
 nn_perObject:add(nn.Tanh())
 nn_perObject:add(nn.Max(1))
 
@@ -32,9 +32,9 @@ nn_merge:add(nn_state)
 
 local net1 = nn.Sequential()
 net1:add(nn_merge)
-net1:add(nn.Linear(9, 6))
+net1:add(nn.Linear(17, 8))
 net1:add(nn.Tanh())
-net1:add(nn.Linear(6, 4))
+net1:add(nn.Linear(8, 4))
 net1:add(nn.Tanh())
 --net1:replace(function(module) return nn.Profile(module, 100, "Player Network") end)
 
@@ -98,9 +98,9 @@ function trainNet()
     
     trainer = nn.StochasticGradient(net1, criterion)
     trainer.learningRate = 0.01
-    trainer.learningRateDecay = 0.1
+    trainer.learningRateDecay = 0.02
     trainer.maxIteration = 25
-    trainer.hookIteration = plotResults
+    --trainer.hookIteration = plotResults
     trainer:train(dataset)
 
     torch.save("cache/net1", net1)
@@ -156,16 +156,13 @@ function Player:process(dt, objects)
     output.reproduce = netOutput[4] > 0.5
   end
   
+  if options['m'] then
+    local gradInput = net1:backward(input, netOutput)
     
-    if options['m'] then
-      local gradInput = net1:backward(input, netOutput)
-      
-      self.net = {
-          input=input,
-          gradInput=gradInput
-      }
-    end
-
+    self.net = {
+        input=input,
+        gradInput=gradInput
+    }
   end
   
   torch.save("cache/input"..tostring(self.ticks), input)
