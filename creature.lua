@@ -31,7 +31,15 @@ function Creature:update(dt)
   end
   
   -- 2 call process function
-  local output = self:process(dt, objectsInSight)
+  local output
+  if self.output and self.latch > 0 then
+    output = self.output
+    self.latch = self.latch - dt
+  else
+    output = self:process(dt, objectsInSight)
+    self.output = output
+    self.latch = 0.05 - dt
+  end
   -- 3 execute actions
   
   if output.eat then
