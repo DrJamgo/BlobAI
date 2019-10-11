@@ -73,7 +73,7 @@ function love.load()
     }
   end
   
-  for i=1,40 do
+  for i=1,20 do
     world.objects[#world.objects+1] = {
       x=love.math.random() * world.sizex,
       y=love.math.random() * world.sizey,
@@ -100,6 +100,8 @@ local foodspawn = 0
 function love.update(dt)
   if options['p'] then return end
   local dt = math.min(dt, 0.033)
+  -- !! Overwrite dt with fixed interval
+  local dt = 0.1
   local totaltime = 0
   local steps = (options['y'] and 5) or 1
   for i=1,steps do

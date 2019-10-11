@@ -20,6 +20,8 @@ local nn_perObject = nn:Sequential()
 nn_perObject:add(nn.Narrow(2, 1, 4))
 nn_perObject:add(nn.Linear(4, 16))
 nn_perObject:add(nn.Tanh())
+nn_perObject:add(nn.Linear(16, 16))
+nn_perObject:add(nn.Tanh())
 nn_perObject:add(nn.Max(1))
 
 local nn_state = nn.Sequential()
@@ -32,9 +34,9 @@ nn_merge:add(nn_state)
 
 local net1 = nn.Sequential()
 net1:add(nn_merge)
-net1:add(nn.Linear(17, 8))
+net1:add(nn.Linear(17, 9))
 net1:add(nn.Tanh())
-net1:add(nn.Linear(8, 4))
+net1:add(nn.Linear(9, 4))
 net1:add(nn.Tanh())
 --net1:replace(function(module) return nn.Profile(module, 100, "Player Network") end)
 
@@ -54,10 +56,26 @@ function plotResults(self, iteration, currentError)
   gnuplot.plot({'Error', torch.Tensor(plot.buffer)})
 end
 
+local criterion = nn.Criterion()
+criterion.c = nn.MSECriterion()
+function criterion:updateOutput(input, target)
+  local input_copy = input:clone()
+  --input_copy[1] = input[1] * target[1]
+  --input_copy[2] = input[2] * target[2]
+  self.output = self.c:updateOutput(input_copy, target)
+  return self.output
+end
+
+function criterion:updateGradInput(input, target)
+  local gradInput = self.c:updateGradInput(input, target)
+  --gradInput[1] = gradInput[1] * target[1]
+  --gradInput[2] = gradInput[2] * target[2]
+  self.gradInput = gradInput
+  return self.gradInput
+end
+
 function trainNet()
   local epoch
-  local criterion = nn.MSECriterion()
-
   local dataset = {}
   local file_index = 1
   while file_exists("cache/input"..tostring(file_index)) do
@@ -67,40 +85,49 @@ function trainNet()
     -- normal copy
     dataset[#dataset+1] = {input, shallOutput}
   
-    local input_hflip = input:clone()
-    local input_vflip = input:clone()
-    local input_hvflip = input:clone()
-    local shallOutput_hflip = shallOutput:clone()
-    local shallOutput_vflip = shallOutput:clone()
-    local shallOutput_hvflip = shallOutput:clone()
-    for c=1,input:size(1) do
-      input_hflip[c][1] = -input_hflip[c][1]
-      input_vflip[c][2] = -input_vflip[c][2]
-      input_hvflip[c][1] = -input_hvflip[c][1]
-      input_hvflip[c][2] = -input_hvflip[c][2]
+    if false then
+      local input_hflip = input:clone()
+      local input_vflip = input:clone()
+      local input_hvflip = input:clone()
+      local shallOutput_hflip = shallOutput:clone()
+      local shallOutput_vflip = shallOutput:clone()
+      local shallOutput_hvflip = shallOutput:clone()
+      for c=1,input:size(1) do
+        input_hflip[c][1] = -input_hflip[c][1]
+        input_vflip[c][2] = -input_vflip[c][2]
+        input_hvflip[c][1] = -input_hvflip[c][1]
+        input_hvflip[c][2] = -input_hvflip[c][2]
+      end
+      
+      shallOutput_hflip[1] = -shallOutput_hflip[1]
+      shallOutput_vflip[2] = -shallOutput_vflip[2]
+      shallOutput_hvflip[1] = -shallOutput_hvflip[1]
+      shallOutput_hvflip[2] = -shallOutput_hvflip[2]
+      
+      -- Add flipped variations of the dataset pair
+      dataset[#dataset+1] = {input_hflip, shallOutput_hflip}
+      dataset[#dataset+1] = {input_vflip, shallOutput_vflip}
+      dataset[#dataset+1] = {input_hvflip, shallOutput_hvflip}
     end
-    
-    shallOutput_hflip[1] = -shallOutput_hflip[1]
-    shallOutput_vflip[2] = -shallOutput_vflip[2]
-    shallOutput_hvflip[1] = -shallOutput_hvflip[1]
-    shallOutput_hvflip[2] = -shallOutput_hvflip[2]
-    
-    -- Add flipped variations of the dataset pair
-    --dataset[#dataset+1] = {input_hflip, shallOutput_hflip}
-    --dataset[#dataset+1] = {input_vflip, shallOutput_vflip}
-    --dataset[#dataset+1] = {input_hvflip, shallOutput_hvflip}
 
     file_index = file_index + 1
   end
+  
+  --for k,v in pairs(dataset) do
+    --local input = dataset[k][1]
+    --local length = math.sqrt((input[1] * input[1]) + (input[2] * input[2]))
+    --dataset[k][1][1] = input[1] / length
+    --dataset[k][1][2] = input[2] / length
+  --end
   
   if #dataset > 0 then
     function dataset:size() return #dataset end
     
     trainer = nn.StochasticGradient(net1, criterion)
-    trainer.learningRate = 0.01
+    trainer.learningRate = 0.025
     trainer.learningRateDecay = 0.02
-    trainer.maxIteration = 25
-    --trainer.hookIteration = plotResults
+    trainer.maxIteration = 20
+    trainer.hookIteration = plotResults
     trainer:train(dataset)
 
     torch.save("cache/net1", net1)
@@ -145,15 +172,15 @@ function Player:process(dt, objects)
   local shallOutput = torch.Tensor(4)
   shallOutput[1] = output.dx or 0
   shallOutput[2] = output.dy or 0
-  shallOutput[3] = (output.eat and 0.9) or 0.1
-  shallOutput[4] = (output.reproduce and 0.9) or 0.1
+  shallOutput[3] = (output.eat and 0.9) or -0.9
+  shallOutput[4] = (output.reproduce and 0.9) or -0.9
   
   if options['n'] then
     self.control = 'network'
     output.dx = netOutput[1]
     output.dy = netOutput[2]
-    output.eat = netOutput[3] > 0.5
-    output.reproduce = netOutput[4] > 0.5
+    output.eat = netOutput[3] > 0.0
+    output.reproduce = netOutput[4] > 0.0
   end
   
   if options['m'] then

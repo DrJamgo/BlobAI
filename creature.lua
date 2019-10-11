@@ -82,7 +82,7 @@ end
 function Creature:_reproduce()
   if not self.reproduce or self.reproduce <= 0 then
     self.size = self.size / 2
-    local new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
+    local new_blob = Player(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
     self.world.blobs[#self.world.blobs+1] = new_blob
     self.reproduce = 5
   end
