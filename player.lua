@@ -59,10 +59,38 @@ function trainNet()
   local criterion = nn.MSECriterion()
 
   local dataset = {}
-  while file_exists("cache/input"..tostring(#dataset+1)) do
-    local input = torch.load("cache/input"..tostring(#dataset+1))
-    local shallOutput = torch.load("cache/shallOutput"..tostring(#dataset+1))
+  local file_index = 1
+  while file_exists("cache/input"..tostring(file_index)) do
+    local input = torch.load("cache/input"..tostring(file_index))
+    local shallOutput = torch.load("cache/shallOutput"..tostring(file_index))
+    
+    -- normal copy
     dataset[#dataset+1] = {input, shallOutput}
+  
+    local input_hflip = input:clone()
+    local input_vflip = input:clone()
+    local input_hvflip = input:clone()
+    local shallOutput_hflip = shallOutput:clone()
+    local shallOutput_vflip = shallOutput:clone()
+    local shallOutput_hvflip = shallOutput:clone()
+    for c=1,input:size(1) do
+      input_hflip[c][1] = -input_hflip[c][1]
+      input_vflip[c][2] = -input_vflip[c][2]
+      input_hvflip[c][1] = -input_hvflip[c][1]
+      input_hvflip[c][2] = -input_hvflip[c][2]
+    end
+    
+    shallOutput_hflip[1] = -shallOutput_hflip[1]
+    shallOutput_vflip[2] = -shallOutput_vflip[2]
+    shallOutput_hvflip[1] = -shallOutput_hvflip[1]
+    shallOutput_hvflip[2] = -shallOutput_hvflip[2]
+    
+    -- Add flipped variations of the dataset pair
+    --dataset[#dataset+1] = {input_hflip, shallOutput_hflip}
+    --dataset[#dataset+1] = {input_vflip, shallOutput_vflip}
+    --dataset[#dataset+1] = {input_hvflip, shallOutput_hvflip}
+
+    file_index = file_index + 1
   end
   
   if #dataset > 0 then
@@ -107,25 +135,27 @@ function Player:process(dt, objects)
     self.control = 'script'
     output = Blob.process(self, dt, objects)
   end
-  if love.keyboard.isDown('a') then output.dx = -1 end
-  if love.keyboard.isDown('d') then output.dx = 1 end
-  if love.keyboard.isDown('s') then output.dy = 1 end
-  if love.keyboard.isDown('w') then output.dy = -1 end
+  if love.keyboard.isDown('a') then output.dx = -0.9 end
+  if love.keyboard.isDown('d') then output.dx = 0.9 end
+  if love.keyboard.isDown('s') then output.dy = 0.9 end
+  if love.keyboard.isDown('w') then output.dy = -0.9 end
   if love.keyboard.isDown('u') then output.eat = true end
   if love.keyboard.isDown('q') then output.reproduce = true end
   
   local shallOutput = torch.Tensor(4)
   shallOutput[1] = output.dx or 0
   shallOutput[2] = output.dy or 0
-  shallOutput[3] = (output.eat and 1) or 0
-  shallOutput[4] = (output.reproduce and 1) or 0
+  shallOutput[3] = (output.eat and 0.9) or 0.1
+  shallOutput[4] = (output.reproduce and 0.9) or 0.1
   
   if options['n'] then
     self.control = 'network'
     output.dx = netOutput[1]
     output.dy = netOutput[2]
-    output.eat = netOutput[3] > 0.1
+    output.eat = netOutput[3] > 0.5
     output.reproduce = netOutput[4] > 0.5
+  end
+  
     
     if options['m'] then
       local gradInput = net1:backward(input, netOutput)
