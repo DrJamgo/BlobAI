@@ -33,10 +33,16 @@ function Creature:update(dt)
   -- 2 call process function
   local output = self:process(dt, objectsInSight)
   -- 3 execute actions
-  self:_move(output.dx or 0, output.dy or 0)
   
-  if output.eat then self:_eat(objectsInRange, dt) end
-  if output.reproduce then self:_reproduce() end
+  if output.eat then
+    self:_eat(objectsInRange, dt)
+    self:_move(0,0)
+  else
+    self:_move(output.dx or 0, output.dy or 0)
+  end
+  if output.reproduce then 
+    self:_reproduce()
+  end
   
   self:_updateHazzard(dt, objectsInRange)
   self:_updateStatus(dt)
