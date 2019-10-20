@@ -18,9 +18,9 @@ require "gnuplot"
 
 local nn_perObject = nn:Sequential()
 nn_perObject:add(nn.Narrow(2, 1, 4))
-nn_perObject:add(nn.Linear(4, 16))
+nn_perObject:add(nn.Linear(4, 20))
 nn_perObject:add(nn.Tanh())
-nn_perObject:add(nn.Linear(16, 16))
+nn_perObject:add(nn.Linear(20, 20))
 nn_perObject:add(nn.Tanh())
 nn_perObject:add(nn.Max(1))
 
@@ -34,9 +34,9 @@ nn_merge:add(nn_state)
 
 local net1 = nn.Sequential()
 net1:add(nn_merge)
-net1:add(nn.Linear(17, 9))
+net1:add(nn.Linear(21, 8))
 net1:add(nn.Tanh())
-net1:add(nn.Linear(9, 4))
+net1:add(nn.Linear(8, 4))
 net1:add(nn.Tanh())
 --net1:replace(function(module) return nn.Profile(module, 100, "Player Network") end)
 
@@ -49,34 +49,77 @@ function file_exists(name)
    if f~=nil then io.close(f) return true else return false end
 end
 
-local plot = {}
-plot.buffer = {}
-function plotResults(self, iteration, currentError)
-  plot.buffer[iteration] = currentError
-  gnuplot.plot({'Error', torch.Tensor(plot.buffer)})
-end
-
 local criterion = nn.Criterion()
 criterion.c = nn.MSECriterion()
 function criterion:updateOutput(input, target)
   local input_copy = input:clone()
-  --input_copy[1] = input[1] * target[1]
-  --input_copy[2] = input[2] * target[2]
-  self.output = self.c:updateOutput(input_copy, target)
+  local target_copy = target:clone()
+  local diff = torch.Tensor(self.avg) - target
+  self.weights = torch.abs(diff)
+  local err = input_copy - target_copy
+  err:cmul(self.weights)
+  self.output = self.c:updateOutput(err, err:clone():fill(0))
   return self.output
 end
 
 function criterion:updateGradInput(input, target)
-  local gradInput = self.c:updateGradInput(input, target)
-  --gradInput[1] = gradInput[1] * target[1]
-  --gradInput[2] = gradInput[2] * target[2]
-  self.gradInput = gradInput
+  local gradInput = self.c:updateGradInput(input, target:clone())
+  self.gradInput = gradInput:clone():cmul(self.weights)
   return self.gradInput
+end
+
+local plot = {}
+plot.buffer = {}
+function plotResults(self, iteration, currentError)
+  
+  gnuplot.figure(1)
+  plot.buffer[iteration] = currentError
+  gnuplot.plot({'Error', torch.Tensor(plot.buffer)})
+  
+  local err = {}
+  local out = {{},{},{},{}}
+  local shall = {{},{},{},{}}
+
+  for i=1,#dataset do
+    local pred = net1:forward(dataset[i][1])
+
+    err[#err+1] = criterion:updateOutput(pred, dataset[i][2])
+    for n=1,pred:size(1) do
+      out[n][#out[n]+1] = pred[n]
+      shall[n][#shall[n]+1] = dataset[i][2][n]
+    end
+  end
+  
+  gnuplot.figure(2)
+  gnuplot.plot({
+      {'Error', torch.Tensor(err), '|'},
+      {'Eat', torch.Tensor(out[3]), '-'},
+      {'Eat(shall)', torch.Tensor(shall[3]), '-'}
+    })
+  
+  gnuplot.figure(3)
+  gnuplot.plot({
+      {'Reproduce', torch.Tensor(out[4]), '-'},
+      {'Reproduce(shall)', torch.Tensor(shall[4]), '-'}
+    })
+  
+  gnuplot.figure(4)
+  gnuplot.plot({
+      {'dx', torch.Tensor(out[1]), '-'},
+      {'dx(shall)', torch.Tensor(shall[1]), '-'}
+    })
+  
+  gnuplot.figure(5)
+  gnuplot.plot({
+      {'dy', torch.Tensor(out[2]), '-'},
+      {'dy(shall)', torch.Tensor(shall[2]), '-'}
+    })
 end
 
 function trainNet()
   local epoch
-  local dataset = {}
+  dataset = {}
+  local outputHist = {}
   local file_index = 1
   while file_exists("cache/input"..tostring(file_index)) do
     local input = torch.load("cache/input"..tostring(file_index))
@@ -84,6 +127,13 @@ function trainNet()
     
     -- normal copy
     dataset[#dataset+1] = {input, shallOutput}
+    for r=1,shallOutput:size(1) do
+      if file_index == 1 then
+        outputHist[r] = shallOutput[r]
+      else
+        outputHist[r] = outputHist[r] + (shallOutput[r] - outputHist[r]) / (file_index + 1)
+      end
+    end
   
     if false then
       local input_hflip = input:clone()
@@ -113,6 +163,8 @@ function trainNet()
     file_index = file_index + 1
   end
   
+  criterion.avg = outputHist
+  
   --for k,v in pairs(dataset) do
     --local input = dataset[k][1]
     --local length = math.sqrt((input[1] * input[1]) + (input[2] * input[2]))
@@ -131,6 +183,7 @@ function trainNet()
     trainer:train(dataset)
 
     torch.save("cache/net1", net1)
+    
   end
 end
 
@@ -220,8 +273,10 @@ function Player:process(dt, objects)
     }
   end
   
-  torch.save("cache/input"..tostring(self.ticks), input)
-  torch.save("cache/shallOutput"..tostring(self.ticks), shallOutput)
+  if not options['n'] then
+    torch.save("cache/input"..tostring(self.ticks), input)
+    torch.save("cache/shallOutput"..tostring(self.ticks), shallOutput)
+  end
   
   self.shallOutput = shallOutput
   self.netOutput = netOutput
