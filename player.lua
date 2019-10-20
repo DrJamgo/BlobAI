@@ -93,9 +93,6 @@ function plotResults(self, iteration, currentError)
   if iteration % 5 == 1 or iteration == self.maxIteration then
     gnuplot.figure(1)
     gnuplot.plot({'Error', torch.Tensor(plot.buffer)})
-  end
-  
-  if iteration == self.maxIteration then
     
     local err = {}
     local out = {{},{},{},{}}
@@ -200,7 +197,7 @@ function trainNet()
     
     trainer = nn.StochasticGradient(net1, criterion)
     trainer.learningRate = 0.01
-    trainer.learningRateDecay = 0.02
+    trainer.learningRateDecay = 0
     trainer.maxIteration = 25
     trainer.hookIteration = plotResults
     trainer:train(dataset)
