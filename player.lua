@@ -162,6 +162,34 @@ function Player:process(dt, objects)
     self.control = 'script'
     output = Blob.process(self, dt, objects)
   end
+  
+  if love.mouse.isDown(1) then
+    mouse_x = love.mouse.getX()
+    mouse_y = love.mouse.getY()
+    local x,y = self.world.transform:inverseTransformPoint(love.mouse.getX(), love.mouse.getY())
+    self.target = {x=x,y=y}
+  end
+  
+  if love.mouse.isDown(2) then
+    output.eat = true
+  end
+  
+  if self:reproduceReady() and love.mouse.isDown(3) then
+    output.reproduce = true
+  end
+  
+  if self.target then
+    local dx = self.target.x - self.body:getX()
+    local dy = self.target.y - self.body:getY()
+    local dist = math.sqrt(dx * dx + dy * dy)
+    if dist > 1.0 then
+      output.dx = dx / dist
+      output.dy = dy / dist
+    else
+      self.target = nil
+    end
+  end
+  
   if love.keyboard.isDown('a') then output.dx = -0.9 end
   if love.keyboard.isDown('d') then output.dx = 0.9 end
   if love.keyboard.isDown('s') then output.dy = 0.9 end
