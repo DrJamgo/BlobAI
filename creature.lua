@@ -58,8 +58,7 @@ function Creature:update(dt)
 end
 
 function Creature:_move(dx,dy)
-  local norm = math.sqrt(dx * dx + dy * dy)
-  if norm < 1 then norm = 1 end
+  local norm = math.max(0.5, math.sqrt(dx * dx + dy * dy))
   self.body:setLinearVelocity(dx * self.speed / norm, dy * self.speed / norm)
   if dx or dy then
     self.dir = math.atan(dy, dx)
