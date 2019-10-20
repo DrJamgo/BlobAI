@@ -16,32 +16,47 @@ require "torch"
 require "gnuplot"
 -- See https://github.com/soumith/cvpr2015/blob/master/Deep%20Learning%20with%20Torch.ipynb
 
-local nn_perObject = nn:Sequential()
-nn_perObject:add(nn.Narrow(2, 1, 4))
-nn_perObject:add(nn.Linear(4, 20))
-nn_perObject:add(nn.Tanh())
-nn_perObject:add(nn.Linear(20, 20))
-nn_perObject:add(nn.Tanh())
-nn_perObject:add(nn.Max(1))
+local nn_po_vec = nn:Sequential()
+nn_po_vec:add(nn.Narrow(2, 1, 2))
 
-local nn_state = nn.Sequential()
-nn_state:add(nn.Narrow(2, 5, 1))
-nn_state:add(nn.Max(1))
+local NUM_CENTERS = 6
+local NUM_PROPERTIES = 2
+local nn_po_class = nn:Sequential()
+nn_po_class:add(nn.Narrow(2, 3, NUM_PROPERTIES))
+local nn_euclidean = nn.WeightedEuclidean(NUM_PROPERTIES, NUM_CENTERS)
+nn_po_class:add(nn_euclidean)
+nn_po_class:add(nn.SoftMin(1))
+--> n_obj x NUM_CENTERS
 
-local nn_merge = nn.Concat(1)
-nn_merge:add(nn_perObject)
-nn_merge:add(nn_state)
+local nn_merge = nn.ConcatTable(1)
+nn_merge:add(nn_po_vec)
+nn_merge:add(nn_po_class)
+--> n_obj x 2
+
+local nn_mult = nn.MM(true, false)
+local t1 = torch.Tensor({{0,1,1}})
+local t2 = torch.Tensor({{-2,-2}})
+local output = nn_mult:forward({t1,t2})
+--> NUM_CENTERS x 2
 
 local net1 = nn.Sequential()
 net1:add(nn_merge)
-net1:add(nn.Linear(21, 8))
+net1:add(nn_mult)
+net1:add(nn.Linear(NUM_CENTERS, 8, false))
 net1:add(nn.Tanh())
-net1:add(nn.Linear(8, 4))
+net1:add(nn.Linear(8, 5))
 net1:add(nn.Tanh())
+net1:add(nn.Linear(5, 1))
+net1:add(nn.Tanh())
+net1:add(nn.Transpose())
+net1:add(nn.Sum(2)) -- <- dummy to remove one dimension
+--> 2
+net1:add(nn.Padding(1,2,nil,0))
 --net1:replace(function(module) return nn.Profile(module, 100, "Player Network") end)
 
+
 for i,module in ipairs(net1:listModules()) do
-   --print(module)
+   print(module)
 end
 
 function file_exists(name)
@@ -56,6 +71,8 @@ function criterion:updateOutput(input, target)
   local target_copy = target:clone()
   local diff = torch.Tensor(self.avg) - target
   self.weights = torch.abs(diff)
+  self.weights[3] = self.weights[3] / 10000000
+  self.weights[4] = self.weights[4] / 10000000
   local err = input_copy - target_copy
   err:cmul(self.weights)
   self.output = self.c:updateOutput(err, err:clone():fill(0))
@@ -71,49 +88,55 @@ end
 local plot = {}
 plot.buffer = {}
 function plotResults(self, iteration, currentError)
-  
-  gnuplot.figure(1)
   plot.buffer[iteration] = currentError
-  gnuplot.plot({'Error', torch.Tensor(plot.buffer)})
   
-  local err = {}
-  local out = {{},{},{},{}}
-  local shall = {{},{},{},{}}
-
-  for i=1,#dataset do
-    local pred = net1:forward(dataset[i][1])
-
-    err[#err+1] = criterion:updateOutput(pred, dataset[i][2])
-    for n=1,pred:size(1) do
-      out[n][#out[n]+1] = pred[n]
-      shall[n][#shall[n]+1] = dataset[i][2][n]
-    end
+  if iteration % 5 == 1 or iteration == self.maxIteration then
+    gnuplot.figure(1)
+    gnuplot.plot({'Error', torch.Tensor(plot.buffer)})
   end
   
-  gnuplot.figure(2)
-  gnuplot.plot({
-      {'Error', torch.Tensor(err), '|'},
-      {'Eat', torch.Tensor(out[3]), '-'},
-      {'Eat(shall)', torch.Tensor(shall[3]), '-'}
-    })
+  if iteration == self.maxIteration then
+    
+    local err = {}
+    local out = {{},{},{},{}}
+    local shall = {{},{},{},{}}
+
+    for i=1,#dataset do
+      local pred = net1:forward(dataset[i][1])
+
+      err[#err+1] = criterion:updateOutput(pred, dataset[i][2])
+      for n=1,pred:size(1) do
+        out[n][#out[n]+1] = pred[n]
+        shall[n][#shall[n]+1] = dataset[i][2][n]
+      end
+    end
+    
+    gnuplot.figure(2)
+    gnuplot.plot({
+        {'Error', torch.Tensor(err), '|'},
+        {'Eat', torch.Tensor(out[3]), '-'},
+        {'Eat(shall)', torch.Tensor(shall[3]), '-'}
+      })
+    
+    gnuplot.figure(3)
+    gnuplot.plot({
+        {'Reproduce', torch.Tensor(out[4]), '-'},
+        {'Reproduce(shall)', torch.Tensor(shall[4]), '-'}
+      })
+    
+    gnuplot.figure(4)
+    gnuplot.plot({
+        {'dx', torch.Tensor(out[1]), '-'},
+        {'dx(shall)', torch.Tensor(shall[1]), '-'}
+      })
+    
+    gnuplot.figure(5)
+    gnuplot.plot({
+        {'dy', torch.Tensor(out[2]), '-'},
+        {'dy(shall)', torch.Tensor(shall[2]), '-'}
+      })
   
-  gnuplot.figure(3)
-  gnuplot.plot({
-      {'Reproduce', torch.Tensor(out[4]), '-'},
-      {'Reproduce(shall)', torch.Tensor(shall[4]), '-'}
-    })
-  
-  gnuplot.figure(4)
-  gnuplot.plot({
-      {'dx', torch.Tensor(out[1]), '-'},
-      {'dx(shall)', torch.Tensor(shall[1]), '-'}
-    })
-  
-  gnuplot.figure(5)
-  gnuplot.plot({
-      {'dy', torch.Tensor(out[2]), '-'},
-      {'dy(shall)', torch.Tensor(shall[2]), '-'}
-    })
+  end
 end
 
 function trainNet()
@@ -176,11 +199,13 @@ function trainNet()
     function dataset:size() return #dataset end
     
     trainer = nn.StochasticGradient(net1, criterion)
-    trainer.learningRate = 0.025
+    trainer.learningRate = 0.01
     trainer.learningRateDecay = 0.02
-    trainer.maxIteration = 20
+    trainer.maxIteration = 25
     trainer.hookIteration = plotResults
     trainer:train(dataset)
+    
+    print("Euclidean Weights (Classes): \n" .. tostring(nn_euclidean.weight))
 
     torch.save("cache/net1", net1)
     
@@ -260,8 +285,8 @@ function Player:process(dt, objects)
     self.control = 'network'
     output.dx = netOutput[1]
     output.dy = netOutput[2]
-    output.eat = netOutput[3] > 0.0
-    output.reproduce = netOutput[4] > 0.0
+    --output.eat = netOutput[3] > 0.0
+    --output.reproduce = netOutput[4] > 0.0
   end
   
   if options['m'] then
@@ -312,6 +337,7 @@ function Player:draw()
         love.graphics.line(x,Y,self.body:getX(),self.body:getY())
       end
     end
+    options['m'] = nil
   end
 end
 

@@ -1,41 +1,50 @@
 require "nn"
 require "gnuplot"
 
-local input = torch.Tensor({{1,2,3},{3,4,5},{6,7,8},{9,10,11},{7,7,7}})
-local t_hflip = torch.eye(5)
+-- n_obj x 5 
+--   dx
+--   dy
+--   dist
+--   food
+--   self.size
+local input = torch.load("cache/input"..tostring(1))
 
+local nn_po_vec = nn:Sequential()
+nn_po_vec:add(nn.Narrow(2, 1, 2))
 
-local criterion = nn.Criterion()
-criterion.c = nn.MSECriterion(false)
-function criterion:updateOutput(input, target)
-  local input_copy = input:clone()
-  input_copy[1] = input[1] * target[1]
-  input_copy[2] = input[2] * target[2]
-  self.output = self.c:updateOutput(input_copy, target)
-  return self.output
-end
+local NUM_CENTERS = 6
+local NUM_PROPERTIES = 2
+local nn_po_class = nn:Sequential()
+nn_po_class:add(nn.Narrow(2, 3, NUM_PROPERTIES))
+local nn_euclidean = nn.Euclidean(NUM_PROPERTIES, NUM_CENTERS)
+nn_po_class:add(nn_euclidean)
+nn_po_class:add(nn.SoftMin(1))
+--> n_obj x NUM_CENTERS
 
-function criterion:updateGradInput(input, target)
-  local gradInput = self.c:updateGradInput(input, target)
-  gradInput[1] = gradInput[1] * target[1]
-  gradInput[2] = gradInput[2] * target[2]
-  self.gradInput = gradInput
-  return self.gradInput
-end
+local nn_merge = nn.ConcatTable(1)
+nn_merge:add(nn_po_vec)
+nn_merge:add(nn_po_class)
+--> n_obj x 2
 
-local input = torch.Tensor({1,0})
-local target = torch.Tensor({0.7,0.7})
+local nn_mult = nn.MM(true, false)
+local t1 = torch.Tensor({{0,1,1}})
+local t2 = torch.Tensor({{-2,-2}})
+local output = nn_mult:forward({t1,t2})
+--> NUM_CENTERS x 2
 
-local output = criterion:updateOutput(input, target)
-local gradInput = criterion:updateGradInput(input, target)
+local net1 = nn.Sequential()
+net1:add(nn_merge)
+net1:add(nn_mult)
+net1:add(nn.Linear(NUM_CENTERS, 8, false))
+net1:add(nn.Tanh())
+net1:add(nn.Linear(8, 3, false))
+net1:add(nn.Tanh())
+net1:add(nn.Linear(3, 1, false))
+net1:add(nn.Tanh())
+net1:add(nn.Sum(2))
+--> 2
+net1:add(nn.Padding(1,2,nil,0))
 
-
-local input = torch.Tensor({0,0})
-local target = torch.Tensor({0.7,0.7})
-
-local output = criterion:updateOutput(input, target)
-local gradInput = criterion:updateGradInput(input, target)
-
-
+local pred = net1:forward(input)
 
 return nil
