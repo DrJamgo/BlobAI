@@ -44,7 +44,7 @@ function Creature:update(dt)
   
   if output.eat then
     self:_eat(objectsInRange, dt)
-    self:_move(0,0)
+    self:_move(output.dx or 0 / 2,output.dy or 0 / 2)
   else
     self:_move(output.dx or 0, output.dy or 0)
   end
@@ -79,10 +79,14 @@ function Creature:_eat(objectsInRange, dt)
   end
 end
 
+function Creature:reproduceReady()
+  return not self.reproduce or self.reproduce <= 0
+end
+
 function Creature:_reproduce()
-  if not self.reproduce or self.reproduce <= 0 then
+  if self:reproduceReady() then
     self.size = self.size / 2
-    local new_blob = Player(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
+    local new_blob = Blob(self.world, self.body:getX() + 1, self.body:getY()+1, self.size, self.color)
     self.world.blobs[#self.world.blobs+1] = new_blob
     self.reproduce = 5
   end

@@ -84,9 +84,9 @@ function love.load()
   
   world.blobs = {}
   
-  --for i=1,10 do
-  --  world.blobs[i] = Blob(world, love.math.random() * world.sizex, love.math.random() * world.sizey)
-  --end
+  for i=1,10 do
+    world.blobs[i] = Player(world, love.math.random() * world.sizex, love.math.random() * world.sizey)
+  end
   
   world.player = Player(world, 0.5 * world.sizex, 0.5 * world.sizey, nil, {1,1,1,0.7})
   table.insert(world.blobs, world.player)
@@ -101,7 +101,7 @@ function love.update(dt)
   if options['p'] then return end
   local dt = math.min(dt, 0.033)
   -- !! Overwrite dt with fixed interval
-  local dt = 0.1
+  local dt = 0.05
   local totaltime = 0
   local steps = (options['y'] and 5) or 1
   for i=1,steps do
@@ -155,7 +155,7 @@ function love.update(dt)
 end
 
 options = {
-  x=true,  -- scipt animation
+  x=nil, -- scipt animation
   p=true  -- pause
 }
 
@@ -181,13 +181,13 @@ function love.draw()
   
   if options['v'] then
     local sx = (love.graphics.getWidth()) / (world.sizex + 20)
-    transform = love.math.newTransform( 10 * sx, 10 * sx, 0, sx, sx)
+    world.transform = love.math.newTransform( 10 * sx, 10 * sx, 0, sx, sx)
   elseif world.player then
     local s = world.player.sense
-    transform = love.math.newTransform(world.player.sense * s,world.player.sense * s, 0, s, s, world.player.body:getX(), world.player.body:getY())
+    world.transform = love.math.newTransform(world.player.sense * s,world.player.sense * s, 0, s, s, world.player.body:getX(), world.player.body:getY())
   end
   
-  love.graphics.replaceTransform( transform )
+  love.graphics.replaceTransform( world.transform )
   
   
   love.graphics.rectangle("line",0,0,world.sizex,world.sizey)
