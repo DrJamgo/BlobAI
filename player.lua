@@ -152,7 +152,6 @@ function Player:draw()
         love.graphics.line(x,Y,self.body:getX(),self.body:getY())
       end
     end
-    options['m'] = nil
   end
 end
 

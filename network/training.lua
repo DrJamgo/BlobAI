@@ -8,8 +8,10 @@ function criterion:updateOutput(input, target)
   local target_copy = target:clone()
   local diff = torch.Tensor(self.avg) - target
   self.weights = torch.abs(diff)
-  self.weights[3] = self.weights[3] / 10000000
-  self.weights[4] = self.weights[4] / 10000000
+  self.weights[1] = 1
+  self.weights[2] = 1
+  self.weights[3] = 1e-9
+  self.weights[4] = 1e-9
   local err = input_copy - target_copy
   err:cmul(self.weights)
   self.output = self.c:updateOutput(err, err:clone():fill(0))

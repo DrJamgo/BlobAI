@@ -147,10 +147,6 @@ function love.update(dt)
     totaltime = totaltime + stats.elapsed_time
     stats:update()
     
-    if totaltime > 1 / 60 then
-      break
-    end
-    
   end
 end
 
